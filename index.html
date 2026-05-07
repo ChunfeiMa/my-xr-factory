@@ -5,11 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
     <style>
-      /* Ensure the XR entry button is visible and at the front */
+      /* Ultra-visible entry button style */
+      #manual-xr-overlay {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100000;
+        display: none; /* Only shows if auto-button fails */
+      }
+      
+      .manual-start-btn {
+        background: #f15a24;
+        color: white;
+        padding: 20px 50px;
+        font-size: 24px;
+        font-weight: bold;
+        border: 4px solid white;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      }
+
+      /* Aggressive override for the standard library button */
       xr-button, .xr-button-container {
         display: block !important;
         position: fixed !important;
-        bottom: 20px !important;
+        bottom: 30px !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
         z-index: 99999 !important;
@@ -28,7 +50,7 @@
         pointer-events: none;
         border-radius: 4px;
         border: 1px solid #f15a24;
-        max-width: 250px;
+        max-width: 280px;
       }
     </style>
     <script>
@@ -53,7 +75,12 @@
     </script>
   </head>
   <body>
-    <div id="debug-log">System: SK Hynix Fab Core v4.6...</div>
+    <div id="debug-log">System: SK Hynix Fab Core v4.7...</div>
+
+    <!-- Manual Fallback Button -->
+    <div id="manual-xr-overlay">
+      <button class="manual-start-btn" id="force-start">ENTER FABRICATION</button>
+    </div>
 
     <script type="module">
       import 'xrblocks/addons/simulator/SimulatorAddons.js';
@@ -78,9 +105,8 @@
         }
 
         init() {
-          log("Configuring production space...");
+          log("Configuring fabrication environment...");
           
-          // Environment Lighting
           this.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.8));
           const sun = new THREE.DirectionalLight(0xffffff, 2);
           sun.position.set(5, 10, 5);
@@ -91,7 +117,6 @@
           this.createLogoWall();
           this.createConveyor();
 
-          // Initialize semiconductor components
           for (let i = 0; i < 8; i++) {
             this.createProductionItem(i * 1.5 - 10.0);
           }
@@ -122,7 +147,6 @@
         createLogoWall() {
           const stand = new THREE.Group();
           stand.position.set(0, 4.0, -10.0);
-
           const bg = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
           stand.add(bg);
 
@@ -167,7 +191,6 @@
         createProductionItem(zPos) {
           const isFoup = Math.random() > 0.4;
           const item = new THREE.Group();
-
           if (isFoup) {
             const outerShell = new THREE.Mesh(
               new THREE.BoxGeometry(0.45, 0.45, 0.45),
@@ -197,7 +220,6 @@
             w.rotation.x = Math.PI / 2;
             item.add(w);
           }
-
           item.position.set(0, 0.85, zPos);
           this.add(item);
           this.items.push(item);
@@ -243,8 +265,8 @@
           panel.rotation.y = 0.55;
           this.add(panel);
           const grid = panel.addGrid();
-          grid.addRow({weight: 0.3}).addText({ text: 'SK HYNIX FAB OS\nRemote Monitoring', fontSize: 0.08, fontColor: '#f15a24' });
-          this.statDisplay = grid.addRow({weight: 0.3}).addText({ text: 'STATUS: SCANNING\nPROCESSED: 0 WAFERS', fontSize: 0.05 });
+          grid.addRow({weight: 0.3}).addText({ text: 'SK HYNIX FAB OS\nRemote Control', fontSize: 0.08, fontColor: '#f15a24' });
+          this.statDisplay = grid.addRow({weight: 0.3}).addText({ text: 'STATUS: MONITORING\nPROCESSED: 0 WAFERS', fontSize: 0.05 });
           const btns = grid.addRow({weight: 0.4});
           btns.addCol({weight: 0.5}).addTextButton({ text: 'PAUSE', backgroundColor: '#ed1c24', fontSize: 0.12 }).onTriggered = () => { this.isStopped = !this.isStopped; };
           btns.addCol({weight: 0.5}).addTextButton({ text: 'BOOST', backgroundColor: '#388e3c', fontSize: 0.12 }).onTriggered = () => { this.conveyorSpeed = Math.min(this.conveyorSpeed + 0.03, 0.25); };
@@ -290,26 +312,45 @@
       document.addEventListener('DOMContentLoaded', async () => {
         const options = new xb.Options();
         
-        // --- Hand & Controller Visibility Fix ---
+        // --- Enhanced Hand Tracking & Interaction ---
         options.enableUI();
         options.enableHands();
         options.enableReticles();
+        
         options.hands.enabled = true;
         options.hands.visualization = true;
         options.hands.visualizeMeshes = true;
         options.controllers.visualizeRays = true;
+        options.xrButton.enabled = true;
+        options.xrButton.startText = 'START FABRICATION';
         
-        options.xrButton.startText = 'ENTER FABRICATION';
-        
-        // Simulator View Settings
+        // High camera perspective for simulator
         options.simulator.cameraPosition = new THREE.Vector3(0, 3, 3);
         options.simulator.lookAt = new THREE.Vector3(0, 0, -3);
 
         xb.add(new FactoryScript());
+        
         try {
           await xb.init(options);
-          log("Secure tunnel established.");
-        } catch (e) { log(`Error: ${e.message}`); }
+          log("Secure OS linked successfully.");
+          
+          // Check if the standard XR button appeared
+          setTimeout(() => {
+            const xrBtn = document.querySelector('xr-button');
+            if (!xrBtn) {
+              log("Warning: Auto-button missing. Showing fallback.");
+              const overlay = document.getElementById('manual-xr-overlay');
+              overlay.style.display = 'block';
+              document.getElementById('force-start').onclick = () => {
+                // Manually trigger the select/click on the hidden overlay to enter XR
+                const autoBtn = document.querySelector('xr-button');
+                if (autoBtn) autoBtn.click();
+                else log("CRITICAL: XR Driver not responding.");
+              };
+            }
+          }, 3000);
+
+        } catch (e) { log(`System Fault: ${e.message}`); }
       });
     </script>
   </body>
