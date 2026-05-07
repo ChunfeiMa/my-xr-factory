@@ -1,10 +1,20 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <title>SK Hynix XR | Semiconductor Production</title>
+    <title>SK Hynix XR | Wafer Production Line</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
     <style>
+      /* Ensure the XR entry button is visible and at the front */
+      xr-button, .xr-button-container {
+        display: block !important;
+        position: fixed !important;
+        bottom: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 99999 !important;
+      }
+
       #debug-log {
         position: fixed;
         top: 10px;
@@ -43,7 +53,7 @@
     </script>
   </head>
   <body>
-    <div id="debug-log">OS: SK Hynix Wafer Fabrication v4.2...</div>
+    <div id="debug-log">System: SK Hynix Fab Core v4.6...</div>
 
     <script type="module">
       import 'xrblocks/addons/simulator/SimulatorAddons.js';
@@ -68,8 +78,9 @@
         }
 
         init() {
-          log("Configuring Fabrication Environment...");
+          log("Configuring production space...");
           
+          // Environment Lighting
           this.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.8));
           const sun = new THREE.DirectionalLight(0xffffff, 2);
           sun.position.set(5, 10, 5);
@@ -80,7 +91,7 @@
           this.createLogoWall();
           this.createConveyor();
 
-          // Initialize with various semiconductor production items
+          // Initialize semiconductor components
           for (let i = 0; i < 8; i++) {
             this.createProductionItem(i * 1.5 - 10.0);
           }
@@ -89,7 +100,7 @@
           this.createControlPanel();
           this.createHumanoidRobot();
           
-          log("System Status: PRODUCTION READY.");
+          log("Status: PRODUCTION READY");
         }
 
         createBackgroundHall() {
@@ -141,73 +152,53 @@
             new THREE.BoxGeometry(1.4, 0.2, 16.0),
             new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8 })
           );
-          belt.position.set(0, 0.8, -7.5);
+          belt.position.set(0, 0.5, -7.5); 
           group.add(belt);
 
           this.laser = new THREE.Mesh(
             new THREE.BoxGeometry(1.6, 0.02, 0.02),
             new THREE.MeshBasicMaterial({ color: 0xff0000 })
           );
-          this.laser.position.set(0, 1.25, -2.5);
+          this.laser.position.set(0, 0.95, -2.5);
           group.add(this.laser);
           this.add(group);
         }
 
-        // New logic to create FOUPs and Wafers
         createProductionItem(zPos) {
           const isFoup = Math.random() > 0.4;
           const item = new THREE.Group();
 
           if (isFoup) {
-            // FOUP (Front Opening Unified Pod)
             const outerShell = new THREE.Mesh(
               new THREE.BoxGeometry(0.45, 0.45, 0.45),
               new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.4, metalness: 0.9, roughness: 0.1 })
             );
             item.add(outerShell);
-
             const innerBase = new THREE.Mesh(
               new THREE.BoxGeometry(0.4, 0.05, 0.4),
               new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1 })
             );
             innerBase.position.y = -0.2;
             item.add(innerBase);
-
-            // Add thin wafers inside the FOUP
             const waferGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.002, 32);
-            const waferMat = new THREE.MeshStandardMaterial({ 
-                color: 0x333333, 
-                metalness: 1.0, 
-                roughness: 0.1, 
-                emissive: 0x001133 
-            });
+            const waferMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1.0, roughness: 0.1, emissive: 0x001133 });
             for(let i=0; i<8; i++) {
                 const w = new THREE.Mesh(waferGeo, waferMat);
                 w.position.y = -0.15 + (i * 0.04);
                 item.add(w);
             }
           } else {
-            // Exposed Wafer Cassette
-            const frame = new THREE.Mesh(
-              new THREE.BoxGeometry(0.4, 0.45, 0.1),
-              new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 1 })
-            );
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.1), new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 1 }));
             frame.position.z = -0.15;
             item.add(frame);
-
             const waferGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.005, 32);
-            const waferMat = new THREE.MeshStandardMaterial({ 
-                color: 0x222222, 
-                metalness: 1.0, 
-                roughness: 0.0,
-                envMapIntensity: 2
-            });
+            const waferMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 1.0, roughness: 0.0 });
             const w = new THREE.Mesh(waferGeo, waferMat);
             w.rotation.x = Math.PI / 2;
             item.add(w);
           }
 
-          item.position.set(0, 1.15, zPos);
+          item.position.set(0, 0.85, zPos);
           this.add(item);
           this.items.push(item);
         }
@@ -216,45 +207,25 @@
           this.robot = new THREE.Group();
           this.robot.position.set(-1.2, 0, -2.5); 
           this.robot.rotation.y = Math.PI / 3;
-
           const metalMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9, roughness: 0.1 });
           const jointMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-
           const torso = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 0.2), metalMat);
           torso.position.y = 1.1;
           this.robot.add(torso);
-          
           this.robotHead = new THREE.Group();
           this.robotHead.position.y = 1.45;
           const headBox = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18), metalMat);
           this.robotHead.add(headBox);
-
-          const visor = new THREE.Mesh(
-            new THREE.BoxGeometry(0.2, 0.05, 0.1), 
-            new THREE.MeshStandardMaterial({ color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 2 })
-          );
+          const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 2 }));
           visor.position.set(0, 0.05, 0.08);
           this.robotHead.add(visor);
           this.robot.add(this.robotHead);
-
-          const createArm = (side) => {
-            const armGroup = new THREE.Group();
-            armGroup.position.set(side * 0.25, 1.25, 0);
-            armGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.06), jointMat));
-            const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35), metalMat);
-            upper.position.y = -0.2;
-            armGroup.add(upper);
-            return armGroup;
-          };
-          this.robot.add(createArm(-1));
-          this.robot.add(createArm(1));
-
           this.add(this.robot);
         }
 
         createRoboticArm() {
           this.armRoot = new THREE.Group();
-          this.armRoot.position.set(1.0, 0.8, -4.5);
+          this.armRoot.position.set(1.0, 0.5, -4.5);
           const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.3), new THREE.MeshStandardMaterial({color: 0x444444}));
           this.armRoot.add(base);
           this.joint = new THREE.Group();
@@ -272,11 +243,11 @@
           panel.rotation.y = 0.55;
           this.add(panel);
           const grid = panel.addGrid();
-          grid.addRow({weight: 0.3}).addText({ text: 'SK HYNIX FAB OS\nv4.2 WAFER GEN', fontSize: 0.08, fontColor: '#f15a24' });
+          grid.addRow({weight: 0.3}).addText({ text: 'SK HYNIX FAB OS\nRemote Monitoring', fontSize: 0.08, fontColor: '#f15a24' });
           this.statDisplay = grid.addRow({weight: 0.3}).addText({ text: 'STATUS: SCANNING\nPROCESSED: 0 WAFERS', fontSize: 0.05 });
           const btns = grid.addRow({weight: 0.4});
-          btns.addCol({weight: 0.5}).addTextButton({ text: 'PAUSE', backgroundColor: '#ed1c24', fontSize: 0.1 }).onTriggered = () => { this.isStopped = !this.isStopped; };
-          btns.addCol({weight: 0.5}).addTextButton({ text: 'BOOST', backgroundColor: '#388e3c', fontSize: 0.1 }).onTriggered = () => { this.conveyorSpeed = Math.min(this.conveyorSpeed + 0.03, 0.25); };
+          btns.addCol({weight: 0.5}).addTextButton({ text: 'PAUSE', backgroundColor: '#ed1c24', fontSize: 0.12 }).onTriggered = () => { this.isStopped = !this.isStopped; };
+          btns.addCol({weight: 0.5}).addTextButton({ text: 'BOOST', backgroundColor: '#388e3c', fontSize: 0.12 }).onTriggered = () => { this.conveyorSpeed = Math.min(this.conveyorSpeed + 0.03, 0.25); };
         }
 
         update() {
@@ -294,11 +265,10 @@
               minDistance = dist;
               nearestItem = item;
             }
-
             if (item.position.z > 2.0) {
               item.position.z = -10.0;
               this.productionCount++;
-              if (this.statDisplay) this.statDisplay.setText(`STATUS: FAB ACTIVE\nPROCESSED: ${this.productionCount} WAFERS`);
+              if (this.statDisplay) this.statDisplay.setText(`STATUS: LINE ACTIVE\nPROCESSED: ${this.productionCount} WAFERS`);
             }
           });
 
@@ -319,12 +289,26 @@
 
       document.addEventListener('DOMContentLoaded', async () => {
         const options = new xb.Options();
+        
+        // --- Hand & Controller Visibility Fix ---
         options.enableUI();
-        options.xrButton.startText = 'ENTER CLEANROOM';
+        options.enableHands();
+        options.enableReticles();
+        options.hands.enabled = true;
+        options.hands.visualization = true;
+        options.hands.visualizeMeshes = true;
+        options.controllers.visualizeRays = true;
+        
+        options.xrButton.startText = 'ENTER FABRICATION';
+        
+        // Simulator View Settings
+        options.simulator.cameraPosition = new THREE.Vector3(0, 3, 3);
+        options.simulator.lookAt = new THREE.Vector3(0, 0, -3);
+
         xb.add(new FactoryScript());
         try {
           await xb.init(options);
-          log("Secure Fab Link Established.");
+          log("Secure tunnel established.");
         } catch (e) { log(`Error: ${e.message}`); }
       });
     </script>
