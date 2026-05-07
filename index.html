@@ -181,15 +181,21 @@
         const options = new xb.Options();
         options.enableUI();
         
-        // Debugging Quest support
+        // Force immersive-ar for Quest 3 Passthrough
+        options.sessionMode = 'immersive-ar';
+        options.xrButton.startText = 'START QUEST EXPERIENCE';
+        
+        // Check for WebXR support and log to a visible space if possible
         if (!navigator.xr) {
-           console.error("WebXR not found. Ensure you are on HTTPS.");
+           document.body.innerHTML += '<div style="position:fixed;top:0;left:0;background:red;color:white;z-index:9999;padding:20px;">WebXR Not Found! Use HTTPS.</div>';
         }
 
-        options.xrButton.startText = 'ENTER FACTORY';
-        
         xb.add(new FactoryScript());
-        await xb.init(options);
+        try {
+          await xb.init(options);
+        } catch (e) {
+          console.error("Initialization failed", e);
+        }
       });
     </script>
   </body>
