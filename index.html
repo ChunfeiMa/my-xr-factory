@@ -1,46 +1,30 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <title>SK Hynix XR | Wafer Production Line</title>
+    <title>SK Hynix XR | Live Camera SOP v11.0</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
     <style>
-      /* Ensure the XR entry button is visible and at the front */
+      /* 强制显示进入 XR 按钮 */
       xr-button, .xr-button-container {
-        display: block !important;
+        display: flex !important;
         position: fixed !important;
-        bottom: 30px !important;
+        bottom: 50px !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        z-index: 99999 !important;
-      }
-
-      #manual-xr-overlay {
-        position: fixed;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 100000;
-        display: none;
-      }
-      
-      .manual-start-btn {
-        background: #f15a24;
-        color: white;
-        padding: 20px 50px;
-        font-size: 24px;
-        font-weight: bold;
-        border: 4px solid white;
-        border-radius: 50px;
-        cursor: pointer;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        z-index: 100000 !important;
+        background: #f15a24 !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        cursor: pointer !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
       }
 
       #debug-log {
         position: fixed;
         top: 10px;
         left: 10px;
-        background: rgba(0,0,0,0.7);
+        background: rgba(0,0,0,0.85);
         color: #00ff00;
         padding: 12px;
         font-family: 'Courier New', monospace;
@@ -49,7 +33,7 @@
         pointer-events: none;
         border-radius: 4px;
         border: 1px solid #f15a24;
-        max-width: 280px;
+        max-width: 320px;
       }
     </style>
     <script>
@@ -74,12 +58,7 @@
     </script>
   </head>
   <body>
-    <div id="debug-log">System: SK Hynix Fab Core v5.0 (Clean View)...</div>
-
-    <!-- Manual Fallback Button -->
-    <div id="manual-xr-overlay">
-      <button class="manual-start-btn" id="force-start">ENTER FABRICATION</button>
-    </div>
+    <div id="debug-log">System: SK Hynix OS v11.0 Camera Init...</div>
 
     <script type="module">
       import 'xrblocks/addons/simulator/SimulatorAddons.js';
@@ -89,7 +68,7 @@
       const log = (msg) => {
         const el = document.getElementById('debug-log');
         if (el) el.innerHTML += `<br>> ${msg}`;
-        console.log(`[HynixLog] ${msg}`);
+        console.log(`[HighFidelityFab] ${msg}`);
       };
 
       class FactoryScript extends xb.Script {
@@ -100,116 +79,91 @@
           this.isStopped = false;
           this.productionCount = 0;
           this.time = 0;
-          this.lookTarget = new THREE.Vector3();
+          this.currentStepIndex = -1;
+          this.steps = [
+            "1. Init Fluid Level Evaluation",
+            "2. Accessing Service Panel",
+            "3. Connecting Service Hoses",
+            "4. Setting Selection Valve",
+            "5. Monitoring System Charge",
+            "6. Resetting Valve Position",
+            "7. Disconnecting Service Panel",
+            "8. Final Cockpit Verification"
+          ];
+          this.stepRowRefs = [];
+          this.stepTextRefs = [];
+          
+          this.cameraStream_ = null;
         }
 
         init() {
-          log("Configuring fabrication environment...");
+          log("构建物理与光照环境...");
           
-          // Environment Lighting
-          this.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.8));
-          const sun = new THREE.DirectionalLight(0xffffff, 2);
-          sun.position.set(5, 10, 5);
-          sun.castShadow = true;
+          // 获取设备摄像头流对象
+          this.cameraStream_ = xb.core.deviceCamera;
+
+          this.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.0));
+          const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+          sun.position.set(5, 15, 5);
           this.add(sun);
 
-          // 1. Create transparent background hall
           this.createBackgroundHall();
-          // 2. Conveyor belt
           this.createConveyor();
 
-          // 3. Initialize production items
           for (let i = 0; i < 8; i++) {
-            this.createProductionItem(i * 1.5 - 10.0);
+            this.createProductionItem(i * 1.8 - 12.0);
           }
 
-          // 4. Mechanical components
           this.createRoboticArm();
-          this.createControlPanel();
+          this.createControlPanel(); 
           this.createHumanoidRobot();
           
-          log("Status: PRODUCTION READY");
+          try {
+            this.assembleSOPMonitor();
+            log("SOP 监控大屏及摄像头流已加载");
+          } catch (err) {
+            log(`UI 加载错误: ${err.message}`);
+          }
+          
+          log("系统已就绪。");
         }
 
         createBackgroundHall() {
           const hall = new THREE.Group();
-          
-          // Floor: 90% transparent for AR
-          const floorGeo = new THREE.PlaneGeometry(60, 60);
-          const floorMat = new THREE.MeshStandardMaterial({ 
-            color: 0x000000, 
-            transparent: true, 
-            opacity: 0.1, 
-            roughness: 1.0 
-          });
-          const floor = new THREE.Mesh(floorGeo, floorMat);
+          const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(100, 100),
+            new THREE.MeshStandardMaterial({ color: 0x000000, transparent: true, opacity: 0.1 })
+          );
           floor.rotation.x = -Math.PI / 2;
-          floor.receiveShadow = true;
           hall.add(floor);
-
-          // Back Wall: 90% transparent
-          const wallMat = new THREE.MeshStandardMaterial({ 
-            color: 0x000000, 
-            transparent: true, 
-            opacity: 0.1 
-          });
-          const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 25), wallMat);
-          wall.position.set(0, 12, -15);
-          hall.add(wall);
-          
           this.add(hall);
         }
 
         createConveyor() {
           const group = new THREE.Group();
           const belt = new THREE.Mesh(
-            new THREE.BoxGeometry(1.4, 0.2, 16.0),
-            new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8 })
+            new THREE.BoxGeometry(1.6, 0.2, 20.0),
+            new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 })
           );
-          belt.position.set(0, 0.5, -7.5); 
+          belt.position.set(0, 0.5, -10.0); 
           group.add(belt);
 
           this.laser = new THREE.Mesh(
-            new THREE.BoxGeometry(1.6, 0.02, 0.02),
+            new THREE.BoxGeometry(1.8, 0.02, 0.02),
             new THREE.MeshBasicMaterial({ color: 0xff0000 })
           );
-          this.laser.position.set(0, 0.95, -2.5);
+          this.laser.position.set(0, 1.0, -3.0);
           group.add(this.laser);
           this.add(group);
         }
 
         createProductionItem(zPos) {
-          const isFoup = Math.random() > 0.4;
           const item = new THREE.Group();
-          if (isFoup) {
-            const outerShell = new THREE.Mesh(
-              new THREE.BoxGeometry(0.45, 0.45, 0.45),
-              new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.4, metalness: 0.9, roughness: 0.1 })
-            );
-            item.add(outerShell);
-            const innerBase = new THREE.Mesh(
-              new THREE.BoxGeometry(0.4, 0.05, 0.4),
-              new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1 })
-            );
-            innerBase.position.y = -0.2;
-            item.add(innerBase);
-            const waferGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.002, 32);
-            const waferMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1.0, roughness: 0.1, emissive: 0x001133 });
-            for(let i=0; i<8; i++) {
-                const w = new THREE.Mesh(waferGeo, waferMat);
-                w.position.y = -0.15 + (i * 0.04);
-                item.add(w);
-            }
-          } else {
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.1), new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 1 }));
-            frame.position.z = -0.15;
-            item.add(frame);
-            const waferGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.005, 32);
-            const waferMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 1.0, roughness: 0.0 });
-            const w = new THREE.Mesh(waferGeo, waferMat);
-            w.rotation.x = Math.PI / 2;
-            item.add(w);
-          }
+          const pod = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 0.5, 0.5),
+            new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.5, metalness: 0.9 })
+          );
+          item.add(pod);
           item.position.set(0, 0.85, zPos);
           this.add(item);
           this.items.push(item);
@@ -217,19 +171,18 @@
 
         createHumanoidRobot() {
           this.robot = new THREE.Group();
-          this.robot.position.set(-1.2, 0, -2.5); 
-          this.robot.rotation.y = Math.PI / 3;
-          const metalMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9, roughness: 0.1 });
-          const jointMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-          const torso = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 0.2), metalMat);
+          this.robot.position.set(-1.5, 0, -3.0); 
+          this.robot.rotation.y = Math.PI / 4;
+          const metal = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
+          const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.25), metal);
           torso.position.y = 1.1;
           this.robot.add(torso);
           this.robotHead = new THREE.Group();
-          this.robotHead.position.y = 1.45;
-          const headBox = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18), metalMat);
-          this.robotHead.add(headBox);
-          const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 2 }));
-          visor.position.set(0, 0.05, 0.08);
+          this.robotHead.position.y = 1.5;
+          const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), metal);
+          this.robotHead.add(head);
+          const visor = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 2 }));
+          visor.position.set(0, 0.05, 0.1);
           this.robotHead.add(visor);
           this.robot.add(this.robotHead);
           this.add(this.robot);
@@ -237,106 +190,180 @@
 
         createRoboticArm() {
           this.armRoot = new THREE.Group();
-          this.armRoot.position.set(1.0, 0.5, -4.5);
-          const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.3), new THREE.MeshStandardMaterial({color: 0x444444}));
+          this.armRoot.position.set(1.5, 0.5, -5.0);
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.4), new THREE.MeshStandardMaterial({color: 0x333333}));
           this.armRoot.add(base);
           this.joint = new THREE.Group();
-          this.joint.position.y = 0.2;
+          this.joint.position.y = 0.3;
           this.armRoot.add(this.joint);
-          const seg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.3, 0.12), new THREE.MeshStandardMaterial({color: 0xffd700}));
-          seg.position.y = 0.65;
+          const seg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.5, 0.15), new THREE.MeshStandardMaterial({color: 0xffcc00}));
+          seg.position.y = 0.7;
           this.joint.add(seg);
           this.add(this.armRoot);
         }
 
         createControlPanel() {
-          const panel = new xb.SpatialPanel({ width: 1.4, height: 1.0, backgroundColor: '#000000f0' });
-          panel.position.set(-1.8, 1.8, -3.5);
-          panel.rotation.y = 0.55;
+          const panel = new xb.SpatialPanel({ width: 0.8, height: 0.6, backgroundColor: '#000000dd' });
+          panel.position.set(-1.8, 1.4, -2.5);
+          panel.rotation.y = 0.6;
           this.add(panel);
           const grid = panel.addGrid();
-          grid.addRow({weight: 0.3}).addText({ text: 'SK HYNIX FAB OS\nRemote Monitoring', fontSize: 0.08, fontColor: '#f15a24' });
-          this.statDisplay = grid.addRow({weight: 0.3}).addText({ text: 'STATUS: MONITORING\nPROCESSED: 0 WAFERS', fontSize: 0.05 });
+          grid.addRow({weight: 0.3}).addText({ text: 'OS CONTROL', fontSize: 0.06, fontColor: '#f15a24' });
+          this.statDisplay = grid.addRow({weight: 0.3}).addText({ text: 'OUTPUT: 0', fontSize: 0.05 });
           const btns = grid.addRow({weight: 0.4});
-          btns.addCol({weight: 0.5}).addTextButton({ text: 'PAUSE', backgroundColor: '#ed1c24', fontSize: 0.12 }).onTriggered = () => { this.isStopped = !this.isStopped; };
-          btns.addCol({weight: 0.5}).addTextButton({ text: 'BOOST', backgroundColor: '#388e3c', fontSize: 0.12 }).onTriggered = () => { this.conveyorSpeed = Math.min(this.conveyorSpeed + 0.03, 0.25); };
+          btns.addCol({weight: 0.5}).addTextButton({ text: 'PAUSE', backgroundColor: '#ed1c24', fontSize: 0.06 }).onTriggered = () => { this.isStopped = !this.isStopped; };
+          btns.addCol({weight: 0.5}).addTextButton({ text: 'BOOST', backgroundColor: '#388e3c', fontSize: 0.06 }).onTriggered = () => { this.conveyorSpeed = Math.min(this.conveyorSpeed + 0.02, 0.2); };
+        }
+
+        // --- 组件化 SOP 监视器，集成真实摄像头视图 ---
+        assembleSOPMonitor() {
+          const sopGroup = new THREE.Group();
+          sopGroup.position.set(2.4, 2.0, -4.5);
+          sopGroup.rotation.y = -0.55;
+          this.add(sopGroup);
+
+          // 1. 整体背板
+          const bg = new xb.SpatialPanel({ width: 4.6, height: 2.6, backgroundColor: '#f5f5f5ff' });
+          bg.position.set(0, 0, -0.05);
+          sopGroup.add(bg);
+
+          // 2. 标题栏
+          const header = new xb.SpatialPanel({ width: 4.4, height: 0.25, backgroundColor: '#ffffff' });
+          header.position.set(0, 1.1, 0);
+          sopGroup.add(header);
+          header.addGrid().addRow().addText({
+            text: ' STANDARD OPERATING PROCEDURE MONITOR - ID: SK_FAB_A_03',
+            fontSize: 0.05, fontColor: '#333333', textAlign: 'left'
+          });
+
+          // 3. 左侧面板：标准视频与描述
+          const leftArea = new xb.SpatialPanel({ width: 1.5, height: 1.9, backgroundColor: 'transparent' });
+          leftArea.position.set(-1.45, -0.1, 0);
+          sopGroup.add(leftArea);
+          const lGrid = leftArea.addGrid();
+          lGrid.addRow({weight: 0.1}).addText({text: 'Standard Procedure', fontSize: 0.045, fontColor: '#000'});
+          lGrid.addRow({weight: 0.45}).addPanel({backgroundColor: '#000000'}).addGrid().addText({text: '[VIDEO: PROCEDURE_REF]\n▶ PLAYING', fontSize: 0.04, fontColor: '#888'});
+          lGrid.addRow({weight: 0.45}).addPanel({backgroundColor: '#ffffff'}).addGrid().addText({
+            text: 'Initial evaluation of fluid level. Ensure wafer alignment matches safety zone.',
+            fontSize: 0.035, fontColor: '#444444', textAlign: 'left'
+          });
+
+          // 4. 中间面板：步骤流水清单
+          const midArea = new xb.SpatialPanel({ width: 1.2, height: 1.9, backgroundColor: 'transparent' });
+          midArea.position.set(0, -0.1, 0);
+          sopGroup.add(midArea);
+          const mGrid = midArea.addGrid();
+          this.stepRows = [];
+          this.stepTexts = [];
+          this.steps.forEach(s => {
+            const row = mGrid.addRow({weight: 1});
+            const p = row.addPanel({backgroundColor: '#eeeeee'});
+            const t = p.addGrid().addText({text: `  ${s}`, fontSize: 0.035, fontColor: '#9e9e9e', textAlign: 'left'});
+            this.stepRows.push(p);
+            this.stepTexts.push(t);
+          });
+
+          // 5. 右侧面板：实时摄像头诊断
+          const rightArea = new xb.SpatialPanel({ width: 1.5, height: 1.9, backgroundColor: 'transparent' });
+          rightArea.position.set(1.45, -0.1, 0);
+          sopGroup.add(rightArea);
+          const rGrid = rightArea.addGrid();
+          rGrid.addRow({weight: 0.1}).addText({text: 'Live Diagnosis', fontSize: 0.045, fontColor: '#000'});
+          
+          // 核心修改：嵌入设备真实摄像头
+          const liveBoxRow = rGrid.addRow({weight: 0.45});
+          this.videoView = liveBoxRow.addVideo(); // 直接创建视频视图
+          
+          // 下方分析结果框
+          const diagBox = rGrid.addRow({weight: 0.45}).addPanel({backgroundColor: '#ffffff'});
+          const dGrid = diagBox.addGrid();
+          this.matchText = dGrid.addRow({weight: 0.3}).addText({text: 'MATCH: 99.8%', fontSize: 0.07, fontColor: '#4caf50'});
+          this.liveText = dGrid.addRow({weight: 0.2}).addText({text: 'AI Analysis: Scanning...', fontSize: 0.035, fontColor: '#f15a24'});
+          dGrid.addRow({weight: 0.5}).addText({text: 'Procedure: Correct\nAlignment: Perfect\nSafety: Verified', fontSize: 0.035, fontColor: '#333333', textAlign: 'left'});
+
+          // 监听并加载摄像头画面
+          if (this.cameraStream_) {
+            this.cameraStream_.addEventListener('statechange', (event) => {
+              if (event.state === 'streaming') {
+                this.videoView.load(this.cameraStream_);
+              } else if (event.state === 'no_devices_found' || event.state === 'error') {
+                log("Camera feed not available.");
+              }
+            });
+            // 如果已经被允许且在传输中，直接加载
+            this.videoView.load(this.cameraStream_);
+          }
         }
 
         update() {
           if (this.isStopped) return;
-          const dt = xb.getDeltaTime();
+          const dt = xb.getDeltaTime() || 0.016; 
           this.time += dt;
 
           let nearestItem = null;
           let minDistance = Infinity;
-
           this.items.forEach(item => {
             item.position.z += this.conveyorSpeed;
-            const dist = Math.abs(item.position.z - this.robot.position.z);
-            if (dist < minDistance) {
-              minDistance = dist;
-              nearestItem = item;
-            }
-            if (item.position.z > 2.0) {
-              item.position.z = -10.0;
+            const dist = Math.abs(item.position.z - (-3.0));
+            if (dist < minDistance) { minDistance = dist; nearestItem = item; }
+            if (item.position.z > 5.0) {
+              item.position.z = -12.0;
               this.productionCount++;
-              if (this.statDisplay) this.statDisplay.setText(`STATUS: LINE ACTIVE\nPROCESSED: ${this.productionCount} WAFERS`);
+              if (this.statDisplay) this.statDisplay.setText(`OUTPUT: ${this.productionCount}`);
             }
           });
 
           if (this.robotHead && nearestItem) {
-            this.lookTarget.set(nearestItem.position.x, nearestItem.position.y, nearestItem.position.z);
-            this.robotHead.lookAt(this.lookTarget);
-            this.robotHead.rotation.x = Math.max(-0.3, Math.min(0.3, this.robotHead.rotation.x));
+            this.robotHead.lookAt(nearestItem.position);
             this.robotHead.rotation.y += Math.PI; 
           }
+          if (this.joint) this.joint.rotation.y = Math.sin(this.time * 0.7) * 1.4;
 
-          if (this.joint) {
-            this.joint.rotation.y = Math.sin(this.time * 0.7) * 1.4;
-            this.joint.rotation.x = Math.cos(this.time * 1.1) * 0.4;
-          }
-          if (this.conveyorSpeed > 0.02) this.conveyorSpeed -= 0.0002;
+          try {
+            const stepIndex = Math.floor((this.time * 0.4) % this.steps.length);
+            if (this.stepTexts.length > 0 && stepIndex !== this.currentStepIndex) {
+              this.currentStepIndex = stepIndex;
+              this.stepTexts.forEach((tComp, idx) => {
+                const panel = this.stepRows[idx];
+                if (idx < stepIndex) {
+                  tComp.setFontColor('#2e7d32'); 
+                  tComp.setText(`  \u2713 ${this.steps[idx]}`); // 打勾
+                  if (panel && panel.setBackgroundColor) panel.setBackgroundColor('#dcedc8');
+                } else if (idx === stepIndex) {
+                  tComp.setFontColor('#ffffff'); 
+                  tComp.setText(`  \u25B6 ${this.steps[idx]}`); // 播放
+                  if (panel && panel.setBackgroundColor) panel.setBackgroundColor('#7e57c2'); // 紫色
+                } else {
+                  tComp.setFontColor('#9e9e9e'); 
+                  tComp.setText(`  ${this.steps[idx]}`);
+                  if (panel && panel.setBackgroundColor) panel.setBackgroundColor('#eeeeee');
+                }
+              });
+              if (this.matchText) this.matchText.setText(`MATCH: ${(99.4 + Math.random() * 0.5).toFixed(1)}%`);
+              if (this.liveText) this.liveText.setText(`AI Analysis: Scanning${['.','..','...'][stepIndex % 3]}`);
+            }
+          } catch (e) {}
+
+          if (this.conveyorSpeed > 0.02) this.conveyorSpeed -= 0.0001;
         }
       }
 
       document.addEventListener('DOMContentLoaded', async () => {
         const options = new xb.Options();
-        
         options.enableUI();
         options.enableHands();
-        options.enableReticles();
         
-        options.hands.enabled = true;
+        // 核心修改：在配置中启用设备摄像头调用
+        options.enableCamera();
+        
         options.hands.visualization = true;
-        options.hands.visualizeMeshes = true;
         options.controllers.visualizeRays = true;
-        
-        options.xrButton.enabled = true;
         options.xrButton.startText = 'START FABRICATION';
+        options.simulator.cameraPosition = new THREE.Vector3(0, 3, 5);
+        options.simulator.lookAt = new THREE.Vector3(0, 1, -4);
         
-        // High perspective for simulator
-        options.simulator.cameraPosition = new THREE.Vector3(0, 3, 3);
-        options.simulator.lookAt = new THREE.Vector3(0, 0, -3);
-
         xb.add(new FactoryScript());
-        
-        try {
-          await xb.init(options);
-          log("Secure OS linked. Passthrough and Clean View enabled.");
-          
-          setTimeout(() => {
-            const xrBtn = document.querySelector('xr-button');
-            if (!xrBtn) {
-              const overlay = document.getElementById('manual-xr-overlay');
-              overlay.style.display = 'block';
-              document.getElementById('force-start').onclick = () => {
-                const autoBtn = document.querySelector('xr-button');
-                if (autoBtn) autoBtn.click();
-              };
-            }
-          }, 3000);
-
-        } catch (e) { log(`System Fault: ${e.message}`); }
+        try { await xb.init(options); } catch (e) { log(`Error: ${e.message}`); }
       });
     </script>
   </body>
