@@ -65,7 +65,7 @@
           // 5. Control Panel UI
           this.createControlPanel();
 
-          // 6. Floor (Visible in VR mode, invisible/Passthrough in AR mode)
+          // 6. Floor
           const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(20, 20),
             new THREE.MeshShadowMaterial({ opacity: 0.2 })
@@ -177,15 +177,19 @@
         }
       }
 
-      document.addEventListener('DOMContentLoaded', () => {
+      document.addEventListener('DOMContentLoaded', async () => {
         const options = new xb.Options();
         options.enableUI();
         
-        // Ensure standard WebXR buttons are used for Meta Quest compatibility
+        // Debugging Quest support
+        if (!navigator.xr) {
+           console.error("WebXR not found. Ensure you are on HTTPS.");
+        }
+
         options.xrButton.startText = 'ENTER FACTORY';
         
         xb.add(new FactoryScript());
-        xb.init(options);
+        await xb.init(options);
       });
     </script>
   </body>
