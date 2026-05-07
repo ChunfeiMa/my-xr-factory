@@ -24,6 +24,26 @@
         border-radius: 8px;
         border: 1px solid #00ccff;
       }
+      /* Fallback button style */
+      #fallback-ui {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10001;
+        display: none; /* Shown via JS if needed */
+      }
+      .btn-start {
+        background: #00ccff;
+        color: black;
+        border: none;
+        padding: 20px 40px;
+        font-size: 20px;
+        font-weight: bold;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,204,255,0.4);
+      }
     </style>
     <script>
       window.litDisableBundleWarning = true;
@@ -48,6 +68,11 @@
   </head>
   <body>
     <div id="debug-log">Initializing Factory...</div>
+    
+    <div id="fallback-ui">
+      <button class="btn-start" onclick="window.startManualXR()">FORCE START XR</button>
+    </div>
+
     <script type="module">
       import * as THREE from 'three';
       import * as xb from 'xrblocks';
@@ -184,6 +209,16 @@
         }
       }
 
+      window.startManualXR = () => {
+         const btn = document.querySelector('xr-button');
+         if (btn) {
+           btn.click();
+         } else {
+           log("Auto-button missing. Initializing manually...");
+           location.reload(); // Force refresh to re-init
+         }
+      };
+
       document.addEventListener('DOMContentLoaded', async () => {
         log("DOM Loaded");
 
@@ -195,11 +230,6 @@
         const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
         log(`AR Supported: ${arSupported}`);
         
-        if (!arSupported) {
-           const vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
-           log(`VR Supported: ${vrSupported}`);
-        }
-
         const options = new xb.Options();
         options.enableUI();
         options.sessionMode = arSupported ? 'immersive-ar' : 'immersive-vr';
@@ -209,11 +239,13 @@
         
         try {
           await xb.init(options);
-          log("XR Blocks Initialized. Button should be visible.");
-          // Hide debug log after successful init in Quest
+          log("XR Blocks Initialized.");
+          
+          // Show fallback button after a short delay if standard button isn't seen
           setTimeout(() => {
-            document.getElementById('debug-log').style.display = 'none';
-          }, 5000);
+            document.getElementById('fallback-ui').style.display = 'block';
+          }, 2000);
+
         } catch (e) {
           log(`Init Error: ${e.message}`);
         }
