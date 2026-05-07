@@ -1,11 +1,10 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <title>XR Factory Simulation | Quest 3 Ready</title>
+    <title>XR Factory Simulation | Quest 3 & Simulator Ready</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
     <style>
-      /* Ensure the XR button is always visible and on top */
       #xr-button, .xr-button-container {
         z-index: 10000 !important;
         display: block !important;
@@ -24,14 +23,13 @@
         border-radius: 8px;
         border: 1px solid #00ccff;
       }
-      /* Fallback button style */
       #fallback-ui {
         position: fixed;
         bottom: 20px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 10001;
-        display: none; /* Shown via JS if needed */
+        display: none;
       }
       .btn-start {
         background: #00ccff;
@@ -70,10 +68,12 @@
     <div id="debug-log">Initializing Factory...</div>
     
     <div id="fallback-ui">
-      <button class="btn-start" onclick="window.startManualXR()">FORCE START XR</button>
+      <button class="btn-start" id="manual-btn">START EXPERIENCE</button>
     </div>
 
     <script type="module">
+      // Import simulator to allow rendering on PC
+      import 'xrblocks/addons/simulator/SimulatorAddons.js';
       import * as THREE from 'three';
       import * as xb from 'xrblocks';
 
@@ -94,7 +94,7 @@
         }
 
         init() {
-          log("Factory Script Initialized");
+          log("Factory Objects Loading...");
           this.add(new THREE.HemisphereLight(0xffffff, 0xbbbbbb, 2));
           const sun = new THREE.DirectionalLight(0xffffff, 1.5);
           sun.position.set(5, 10, 5);
@@ -119,6 +119,7 @@
           );
           floor.rotation.x = -Math.PI / 2;
           this.add(floor);
+          log("Factory Ready");
         }
 
         createCrate(zPos) {
@@ -209,45 +210,45 @@
         }
       }
 
-      window.startManualXR = () => {
-         const btn = document.querySelector('xr-button');
-         if (btn) {
-           btn.click();
-         } else {
-           log("Auto-button missing. Initializing manually...");
-           location.reload(); // Force refresh to re-init
-         }
-      };
-
       document.addEventListener('DOMContentLoaded', async () => {
-        log("DOM Loaded");
+        log("Checking for WebXR...");
 
-        if (!navigator.xr) {
-          log("CRITICAL: WebXR not found. You MUST use HTTPS.");
-          return;
-        }
-        
-        const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-        log(`AR Supported: ${arSupported}`);
-        
+        // Setup options
         const options = new xb.Options();
         options.enableUI();
-        options.sessionMode = arSupported ? 'immersive-ar' : 'immersive-vr';
         options.xrButton.startText = 'START QUEST EXPERIENCE';
         
+        // Check WebXR support
+        if (navigator.xr) {
+          const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+          log(`AR Supported: ${arSupported}`);
+          options.sessionMode = arSupported ? 'immersive-ar' : 'immersive-vr';
+        } else {
+          log("WebXR not found. Running in Simulator mode.");
+        }
+        
+        // Add script and initialize
         xb.add(new FactoryScript());
         
         try {
           await xb.init(options);
           log("XR Blocks Initialized.");
           
-          // Show fallback button after a short delay if standard button isn't seen
+          // Logic for fallback button (useful for Quest if auto-button fails)
           setTimeout(() => {
-            document.getElementById('fallback-ui').style.display = 'block';
+            const fb = document.getElementById('fallback-ui');
+            const xrBtn = document.querySelector('xr-button');
+            if (!xrBtn && navigator.xr) {
+              fb.style.display = 'block';
+              document.getElementById('manual-btn').onclick = () => {
+                 const overlay = document.querySelector('xr-overlay') || document.body;
+                 overlay.click();
+              };
+            }
           }, 2000);
 
         } catch (e) {
-          log(`Init Error: ${e.message}`);
+          log(`Initialization Error: ${e.message}`);
         }
       });
     </script>
