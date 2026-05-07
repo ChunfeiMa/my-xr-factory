@@ -1,46 +1,24 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <title>XR Factory Simulation | Quest 3 & Simulator Ready</title>
+    <title>XR Factory Simulation | SK Hynix Edition</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
     <style>
-      #xr-button, .xr-button-container {
-        z-index: 10000 !important;
-        display: block !important;
-      }
       #debug-log {
         position: fixed;
         top: 10px;
         left: 10px;
-        background: rgba(0,0,0,0.8);
+        background: rgba(0,0,0,0.85);
         color: #00ff00;
-        padding: 15px;
-        font-family: monospace;
-        font-size: 14px;
+        padding: 12px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
         z-index: 9999;
         pointer-events: none;
-        border-radius: 8px;
+        border-radius: 4px;
         border: 1px solid #00ccff;
-      }
-      #fallback-ui {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 10001;
-        display: none;
-      }
-      .btn-start {
-        background: #00ccff;
-        color: black;
-        border: none;
-        padding: 20px 40px;
-        font-size: 20px;
-        font-weight: bold;
-        border-radius: 50px;
-        cursor: pointer;
-        box-shadow: 0 4px 15px rgba(0,204,255,0.4);
+        max-width: 300px;
       }
     </style>
     <script>
@@ -65,14 +43,9 @@
     </script>
   </head>
   <body>
-    <div id="debug-log">Initializing Factory...</div>
-    
-    <div id="fallback-ui">
-      <button class="btn-start" id="manual-btn">START EXPERIENCE</button>
-    </div>
+    <div id="debug-log">System: Initializing SK Hynix Facility...</div>
 
     <script type="module">
-      // Import simulator to allow rendering on PC
       import 'xrblocks/addons/simulator/SimulatorAddons.js';
       import * as THREE from 'three';
       import * as xb from 'xrblocks';
@@ -80,175 +53,268 @@
       const log = (msg) => {
         const el = document.getElementById('debug-log');
         if (el) el.innerHTML += `<br>> ${msg}`;
-        console.log(msg);
+        console.log(`[FactoryLog] ${msg}`);
       };
 
       class FactoryScript extends xb.Script {
         constructor() {
           super();
           this.items = [];
-          this.conveyorSpeed = 0.01;
+          this.conveyorSpeed = 0.015;
           this.isStopped = false;
           this.productionCount = 0;
           this.time = 0;
+          this.statDisplay = null;
         }
 
         init() {
-          log("Factory Objects Loading...");
-          this.add(new THREE.HemisphereLight(0xffffff, 0xbbbbbb, 2));
-          const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-          sun.position.set(5, 10, 5);
+          log("Building Factory Hall...");
+          
+          // Environment Lighting - Brighter for better logo visibility
+          this.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.0));
+          const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+          sun.position.set(2, 10, 5);
+          sun.castShadow = true;
           this.add(sun);
 
-          const beltGeo = new THREE.BoxGeometry(0.6, 0.1, 4.0);
-          const beltMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+          // 1. Background Hall
+          this.createBackgroundHall();
+
+          // 2. Branding Stand (Logo placed here for high visibility)
+          this.createLogoStand();
+
+          // 3. Conveyor Belt
+          const beltGeo = new THREE.BoxGeometry(0.8, 0.1, 8.0);
+          const beltMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
           this.belt = new THREE.Mesh(beltGeo, beltMat);
-          this.belt.position.set(0, 0.7, -1.5);
+          this.belt.position.set(0, 0.8, -3.5);
+          this.belt.receiveShadow = true;
           this.add(this.belt);
 
-          for (let i = 0; i < 5; i++) {
-            this.createCrate(i * 0.8 - 1.5);
+          // 4. Production Items
+          for (let i = 0; i < 8; i++) {
+            this.createCrate(i * 1.0 - 7.5);
           }
 
+          // 5. Mechanical components
           this.createRoboticArm();
           this.createControlPanel();
+          
+          log("Facility Online.");
+        }
 
-          const floor = new THREE.Mesh(
-            new THREE.PlaneGeometry(20, 20),
-            new THREE.MeshShadowMaterial({ opacity: 0.2 })
-          );
+        createBackgroundHall() {
+          const hallGroup = new THREE.Group();
+          
+          // Floor
+          const floorGeo = new THREE.PlaneGeometry(60, 60);
+          const floorMat = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a1a, 
+            roughness: 0.85 
+          });
+          const floor = new THREE.Mesh(floorGeo, floorMat);
           floor.rotation.x = -Math.PI / 2;
-          this.add(floor);
-          log("Factory Ready");
+          floor.receiveShadow = true;
+          hallGroup.add(floor);
+
+          // Back Wall (Darker to make foreground stand out)
+          const wallMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a });
+          const backWall = new THREE.Mesh(new THREE.PlaneGeometry(60, 25), wallMat);
+          backWall.position.set(0, 12.5, -15);
+          hallGroup.add(backWall);
+
+          // Industrial Pillars
+          const pillarGeo = new THREE.BoxGeometry(0.6, 25, 0.6);
+          const pillarMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+          
+          for (let i = -3; i <= 3; i++) {
+            const pillarL = new THREE.Mesh(pillarGeo, pillarMat);
+            pillarL.position.set(-10, 12.5, i * 8 - 5);
+            hallGroup.add(pillarL);
+
+            const pillarR = new THREE.Mesh(pillarGeo, pillarMat);
+            pillarR.position.set(10, 12.5, i * 8 - 5);
+            hallGroup.add(pillarR);
+
+            const beamGeo = new THREE.BoxGeometry(20, 0.5, 0.5);
+            const beam = new THREE.Mesh(beamGeo, pillarMat);
+            beam.position.set(0, 24.5, i * 8 - 5);
+            hallGroup.add(beam);
+          }
+
+          this.add(hallGroup);
+        }
+
+        createLogoStand() {
+          const standGroup = new THREE.Group();
+          standGroup.position.set(0, 2.5, -5.5); // Positioned closely behind the belt
+
+          // White Background Plane for Logo (Crucial for clear visibility)
+          const bgGeo = new THREE.PlaneGeometry(3.5, 1.8);
+          const bgMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+          const background = new THREE.Mesh(bgGeo, bgMat);
+          standGroup.add(background);
+
+          // SK HYNIX LOGO
+          const logoTexture = new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/SK_hynix_logo.svg/1024px-SK_hynix_logo.svg.png');
+          const logoGeo = new THREE.PlaneGeometry(3.2, 1.5);
+          const logoMat = new THREE.MeshBasicMaterial({ 
+            map: logoTexture,
+            transparent: true,
+          });
+          const logoSign = new THREE.Mesh(logoGeo, logoMat);
+          logoSign.position.z = 0.01; // Slightly in front of white plane
+          standGroup.add(logoSign);
+
+          // Glowing Frame
+          const frameGeo = new THREE.BoxGeometry(3.7, 2.0, 0.1);
+          const frameMat = new THREE.MeshStandardMaterial({ 
+            color: 0xf15a24, 
+            emissive: 0xf15a24, 
+            emissiveIntensity: 1.0 
+          });
+          const frame = new THREE.Mesh(frameGeo, frameMat);
+          frame.position.z = -0.06;
+          standGroup.add(frame);
+
+          // Support Stand
+          const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.5);
+          const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+          const pole = new THREE.Mesh(poleGeo, poleMat);
+          pole.position.set(0, -2.0, -0.1);
+          standGroup.add(pole);
+
+          this.add(standGroup);
         }
 
         createCrate(zPos) {
-          const crateGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-          const crateMat = new THREE.MeshPhongMaterial({ color: 0xd2691e });
+          const crateGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+          const crateMat = new THREE.MeshStandardMaterial({ color: 0xcd853f });
           const crate = new THREE.Mesh(crateGeo, crateMat);
-          crate.position.set(0, 0.85, zPos);
+          crate.position.set(0, 1.05, zPos);
+          crate.castShadow = true;
           this.add(crate);
           this.items.push(crate);
         }
 
         createRoboticArm() {
-          this.armRoot = new THREE.Group();
-          this.armRoot.position.set(0.5, 0.75, -1.5);
+          this.armGroup = new THREE.Group();
+          this.armGroup.position.set(0.8, 0.8, -3.0);
+
           const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.1, 0.1, 0.2),
-            new THREE.MeshPhongMaterial({ color: 0x777777 })
+            new THREE.CylinderGeometry(0.18, 0.18, 0.3),
+            new THREE.MeshStandardMaterial({ color: 0x444444 })
           );
-          this.armRoot.add(base);
+          this.armGroup.add(base);
+
+          this.armJoint = new THREE.Group();
+          this.armJoint.position.y = 0.15;
+          this.armGroup.add(this.armJoint);
+
           this.upperArm = new THREE.Mesh(
-            new THREE.BoxGeometry(0.05, 0.4, 0.05),
-            new THREE.MeshPhongMaterial({ color: 0xffcc00 })
+            new THREE.BoxGeometry(0.12, 1.0, 0.12),
+            new THREE.MeshStandardMaterial({ color: 0xffd700 })
           );
-          this.upperArm.position.y = 0.2;
-          this.armRoot.add(this.upperArm);
-          this.add(this.armRoot);
+          this.upperArm.position.y = 0.5;
+          this.armJoint.add(this.upperArm);
+
+          this.add(this.armGroup);
         }
 
         createControlPanel() {
           const panel = new xb.SpatialPanel({
-            width: 1.0,
-            height: 0.8,
-            backgroundColor: '#1a1a1aff'
+            width: 1.25,
+            height: 1.0,
+            backgroundColor: '#000000ee'
           });
-          panel.position.set(-0.8, 1.4, -1.2);
+          panel.position.set(-1.4, 1.8, -2.2);
           panel.rotation.y = 0.5;
           this.add(panel);
 
           const grid = panel.addGrid();
-          grid.addRow({weight: 0.2}).addText({
-            text: 'QUEST FACTORY',
-            fontSize: 0.06,
-            fontColor: '#00ccff'
+          grid.addRow({weight: 0.25}).addText({
+            text: 'SK HYNIX CORE OS',
+            fontSize: 0.09,
+            fontColor: '#f15a24' 
           });
 
           this.statDisplay = grid.addRow({weight: 0.3}).addText({
-            text: 'Status: OPERATIONAL\nUnits: 0',
-            fontSize: 0.04
+            text: 'SYSTEM: AUTHENTICATED\nUNIT SCANNER ACTIVE',
+            fontSize: 0.05,
+            fontColor: '#ffffff'
           });
 
-          const btnRow = grid.addRow({weight: 0.4});
-          btnRow.addCol({weight: 0.5}).addTextButton({
-            text: 'STOP',
-            backgroundColor: '#aa0000',
-            fontSize: 0.15
+          const ctrlRow = grid.addRow({weight: 0.45});
+          
+          ctrlRow.addCol({weight: 0.5}).addTextButton({
+            text: 'ENGAGE',
+            backgroundColor: '#ed1c24', 
+            fontSize: 0.12
           }).onTriggered = () => this.toggleFactory();
 
-          btnRow.addCol({weight: 0.5}).addTextButton({
+          ctrlRow.addCol({weight: 0.5}).addTextButton({
             text: 'BOOST',
-            backgroundColor: '#00aa00',
-            fontSize: 0.15
-          }).onTriggered = () => { this.conveyorSpeed = 0.04; };
+            backgroundColor: '#388e3c',
+            fontSize: 0.12
+          }).onTriggered = () => { 
+            this.conveyorSpeed = Math.min(this.conveyorSpeed + 0.02, 0.15); 
+            log("Core Performance Boosted");
+          };
         }
 
         toggleFactory() {
           this.isStopped = !this.isStopped;
-          this.statDisplay.setText(
-            `Status: ${this.isStopped ? 'STOPPED' : 'OPERATIONAL'}\nUnits: ${this.productionCount}`
-          );
+          log(`Operation ${this.isStopped ? 'Suspended' : 'Resumed'}`);
+          this.updateStats();
+        }
+
+        updateStats() {
+          if (this.statDisplay) {
+            const status = this.isStopped ? 'PAUSED' : 'OPTIMAL';
+            this.statDisplay.setText(`SYSTEM: ${status}\nPROCESSED: ${this.productionCount} UNITS`);
+          }
         }
 
         update() {
           if (this.isStopped) return;
-          this.time += xb.getDeltaTime();
+          
+          const dt = xb.getDeltaTime();
+          this.time += dt;
+
           this.items.forEach(item => {
             item.position.z += this.conveyorSpeed;
             if (item.position.z > 0.5) {
-              item.position.z = -3.0;
+              item.position.z = -7.5; 
               this.productionCount++;
-              this.statDisplay.setText(`Status: OPERATIONAL\nUnits: ${this.productionCount}`);
+              this.updateStats();
             }
           });
-          if (this.armRoot) {
-            this.armRoot.rotation.y = Math.sin(this.time * 2) * 0.5;
-            this.upperArm.rotation.x = Math.cos(this.time * 4) * 0.3;
+
+          if (this.armJoint) {
+            this.armJoint.rotation.y = Math.sin(this.time * 1.0) * 1.2;
+            this.armJoint.rotation.z = Math.cos(this.time * 1.5) * 0.4;
           }
-          if (this.conveyorSpeed > 0.01) this.conveyorSpeed -= 0.0001;
+
+          if (this.conveyorSpeed > 0.015) {
+            this.conveyorSpeed -= 0.0001;
+          }
         }
       }
 
       document.addEventListener('DOMContentLoaded', async () => {
-        log("Checking for WebXR...");
+        log("System Link Initializing...");
 
-        // Setup options
         const options = new xb.Options();
         options.enableUI();
-        options.xrButton.startText = 'START QUEST EXPERIENCE';
+        options.xrButton.startText = 'START PRODUCTION';
         
-        // Check WebXR support
-        if (navigator.xr) {
-          const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-          log(`AR Supported: ${arSupported}`);
-          options.sessionMode = arSupported ? 'immersive-ar' : 'immersive-vr';
-        } else {
-          log("WebXR not found. Running in Simulator mode.");
-        }
-        
-        // Add script and initialize
         xb.add(new FactoryScript());
         
         try {
           await xb.init(options);
-          log("XR Blocks Initialized.");
-          
-          // Logic for fallback button (useful for Quest if auto-button fails)
-          setTimeout(() => {
-            const fb = document.getElementById('fallback-ui');
-            const xrBtn = document.querySelector('xr-button');
-            if (!xrBtn && navigator.xr) {
-              fb.style.display = 'block';
-              document.getElementById('manual-btn').onclick = () => {
-                 const overlay = document.querySelector('xr-overlay') || document.body;
-                 overlay.click();
-              };
-            }
-          }, 2000);
-
-        } catch (e) {
-          log(`Initialization Error: ${e.message}`);
+          log("SK Hynix Authorized Link Ready.");
+        } catch (err) {
+          log(`Error: ${err.message}`);
         }
       });
     </script>
