@@ -4,6 +4,27 @@
     <title>XR Factory Simulation | Quest 3 Ready</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <link type="text/css" rel="stylesheet" href="https://xrblocks.github.io/css/xr.css" />
+    <style>
+      /* Ensure the XR button is always visible and on top */
+      #xr-button, .xr-button-container {
+        z-index: 10000 !important;
+        display: block !important;
+      }
+      #debug-log {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.8);
+        color: #00ff00;
+        padding: 15px;
+        font-family: monospace;
+        font-size: 14px;
+        z-index: 9999;
+        pointer-events: none;
+        border-radius: 8px;
+        border: 1px solid #00ccff;
+      }
+    </style>
     <script>
       window.litDisableBundleWarning = true;
     </script>
@@ -26,9 +47,16 @@
     </script>
   </head>
   <body>
+    <div id="debug-log">Initializing Factory...</div>
     <script type="module">
       import * as THREE from 'three';
       import * as xb from 'xrblocks';
+
+      const log = (msg) => {
+        const el = document.getElementById('debug-log');
+        if (el) el.innerHTML += `<br>> ${msg}`;
+        console.log(msg);
+      };
 
       class FactoryScript extends xb.Script {
         constructor() {
@@ -41,31 +69,25 @@
         }
 
         init() {
-          // 1. Lighting (Bright factory lighting)
+          log("Factory Script Initialized");
           this.add(new THREE.HemisphereLight(0xffffff, 0xbbbbbb, 2));
           const sun = new THREE.DirectionalLight(0xffffff, 1.5);
           sun.position.set(5, 10, 5);
           this.add(sun);
 
-          // 2. Conveyor Belt Base
           const beltGeo = new THREE.BoxGeometry(0.6, 0.1, 4.0);
           const beltMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
           this.belt = new THREE.Mesh(beltGeo, beltMat);
           this.belt.position.set(0, 0.7, -1.5);
           this.add(this.belt);
 
-          // 3. Spawning production items (Crates)
           for (let i = 0; i < 5; i++) {
             this.createCrate(i * 0.8 - 1.5);
           }
 
-          // 4. Robotic Arm
           this.createRoboticArm();
-
-          // 5. Control Panel UI
           this.createControlPanel();
 
-          // 6. Floor
           const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(20, 20),
             new THREE.MeshShadowMaterial({ opacity: 0.2 })
@@ -86,20 +108,17 @@
         createRoboticArm() {
           this.armRoot = new THREE.Group();
           this.armRoot.position.set(0.5, 0.75, -1.5);
-
           const base = new THREE.Mesh(
             new THREE.CylinderGeometry(0.1, 0.1, 0.2),
             new THREE.MeshPhongMaterial({ color: 0x777777 })
           );
           this.armRoot.add(base);
-
           this.upperArm = new THREE.Mesh(
             new THREE.BoxGeometry(0.05, 0.4, 0.05),
             new THREE.MeshPhongMaterial({ color: 0xffcc00 })
           );
           this.upperArm.position.y = 0.2;
           this.armRoot.add(this.upperArm);
-
           this.add(this.armRoot);
         }
 
@@ -126,20 +145,17 @@
           });
 
           const btnRow = grid.addRow({weight: 0.4});
-          
-          const stopBtn = btnRow.addCol({weight: 0.5}).addTextButton({
+          btnRow.addCol({weight: 0.5}).addTextButton({
             text: 'STOP',
             backgroundColor: '#aa0000',
             fontSize: 0.15
-          });
-          stopBtn.onTriggered = () => this.toggleFactory();
+          }).onTriggered = () => this.toggleFactory();
 
-          const speedBtn = btnRow.addCol({weight: 0.5}).addTextButton({
+          btnRow.addCol({weight: 0.5}).addTextButton({
             text: 'BOOST',
             backgroundColor: '#00aa00',
             fontSize: 0.15
-          });
-          speedBtn.onTriggered = () => { this.conveyorSpeed = 0.04; };
+          }).onTriggered = () => { this.conveyorSpeed = 0.04; };
         }
 
         toggleFactory() {
@@ -151,50 +167,55 @@
 
         update() {
           if (this.isStopped) return;
-
           this.time += xb.getDeltaTime();
-          const speed = this.conveyorSpeed;
-
           this.items.forEach(item => {
-            item.position.z += speed;
+            item.position.z += this.conveyorSpeed;
             if (item.position.z > 0.5) {
               item.position.z = -3.0;
               this.productionCount++;
-              this.statDisplay.setText(
-                `Status: OPERATIONAL\nUnits: ${this.productionCount}`
-              );
+              this.statDisplay.setText(`Status: OPERATIONAL\nUnits: ${this.productionCount}`);
             }
           });
-
           if (this.armRoot) {
             this.armRoot.rotation.y = Math.sin(this.time * 2) * 0.5;
             this.upperArm.rotation.x = Math.cos(this.time * 4) * 0.3;
           }
-
-          if (this.conveyorSpeed > 0.01) {
-             this.conveyorSpeed -= 0.0001;
-          }
+          if (this.conveyorSpeed > 0.01) this.conveyorSpeed -= 0.0001;
         }
       }
 
       document.addEventListener('DOMContentLoaded', async () => {
-        const options = new xb.Options();
-        options.enableUI();
-        
-        // Force immersive-ar for Quest 3 Passthrough
-        options.sessionMode = 'immersive-ar';
-        options.xrButton.startText = 'START QUEST EXPERIENCE';
-        
-        // Check for WebXR support and log to a visible space if possible
+        log("DOM Loaded");
+
         if (!navigator.xr) {
-           document.body.innerHTML += '<div style="position:fixed;top:0;left:0;background:red;color:white;z-index:9999;padding:20px;">WebXR Not Found! Use HTTPS.</div>';
+          log("CRITICAL: WebXR not found. You MUST use HTTPS.");
+          return;
+        }
+        
+        const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+        log(`AR Supported: ${arSupported}`);
+        
+        if (!arSupported) {
+           const vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
+           log(`VR Supported: ${vrSupported}`);
         }
 
+        const options = new xb.Options();
+        options.enableUI();
+        options.sessionMode = arSupported ? 'immersive-ar' : 'immersive-vr';
+        options.xrButton.startText = 'START QUEST EXPERIENCE';
+        
         xb.add(new FactoryScript());
+        
         try {
           await xb.init(options);
+          log("XR Blocks Initialized. Button should be visible.");
+          // Hide debug log after successful init in Quest
+          setTimeout(() => {
+            document.getElementById('debug-log').style.display = 'none';
+          }, 5000);
         } catch (e) {
-          console.error("Initialization failed", e);
+          log(`Init Error: ${e.message}`);
         }
       });
     </script>
